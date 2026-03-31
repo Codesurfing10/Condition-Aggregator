@@ -1,0 +1,10 @@
+[tool]
+name = "condition-aggregator"
+version = "0.1.0"
+
+[dependencies]
+fastapi = "^0.75.0"
+uvicorn = "^0.17.0"
+leaflet = "latest"
+plotly = "latest"
+requests = "^2.26.0"
