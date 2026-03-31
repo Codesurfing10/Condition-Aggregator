@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Route Planner</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <h1>Route Planning</h1>
+    <form id="route-form">
+        <label for="start-lat">Start Latitude:</label>
+        <input type="text" id="start-lat" value="24.1426" required />
+        <label for="start-lon">Start Longitude:</label>
+        <input type="text" id="start-lon" value="-110.3128" required />
+        <br />
+        <label for="end-lat">End Latitude:</label>
+        <input type="text" id="end-lat" value="49.2827" required />
+        <label for="end-lon">End Longitude:</label>
+        <input type="text" id="end-lon" value="-123.1207" required />
+        <br />
+        <button type="submit">Plan Route</button>
+    </form>
+    <div id="map" style="height: 500px;"></div>
+    <div id="chart" style="height: 400px;"></div>
+    <script src="app.js"></script>
+</body>
+</html>
