@@ -1,0 +1,38 @@
+name: Weather-aware route
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests geopy geographiclib folium
+
+      - name: Run weather-aware route script
+        env:
+          NOAA_TOKEN: ${{ secrets.NOAA_TOKEN }}
+        run: |
+          python scripts/weather_aware_route.py
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: weather-route-output
+          path: |
+            output/map.html
+            data/reference_points.geojson
+            data/adverse_segments.geojson
