@@ -9,53 +9,404 @@
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script src="./app.js" defer></script>
     <style>
-        body { font-family: sans-serif; margin: 0; padding: 16px; }
-        h1 { margin-top: 0; }
-        #aiPanel {
-            margin-top: 24px;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            padding: 16px;
-            max-width: 700px;
+        :root {
+            --bg: #070e1b;
+            --bg-card: rgba(10, 25, 50, 0.72);
+            --border: rgba(0, 180, 220, 0.22);
+            --text: #c8daf5;
+            --text-bright: #e8f4ff;
+            --accent: #00c8e0;
+            --accent2: #0055bb;
+            --danger: #ff5555;
+            --warn: #ffaa00;
+            --ok: #00dd88;
         }
-        #aiPanel h2 { margin-top: 0; font-size: 1.1rem; }
-        #chatLog {
-            height: 220px;
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            min-height: 100vh;
+            background-image:
+                radial-gradient(ellipse at 15% 0%, rgba(0,100,200,0.18) 0%, transparent 55%),
+                radial-gradient(ellipse at 85% 100%, rgba(0,180,220,0.12) 0%, transparent 55%);
+        }
+        /* ── Header ── */
+        header {
+            padding: 18px 22px 14px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(0,0,0,0.35);
+            backdrop-filter: blur(12px);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            display: flex;
+            align-items: baseline;
+            gap: 14px;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 1.55rem;
+            font-weight: 700;
+            background: linear-gradient(130deg, #00c8e0 0%, #3399ff 50%, #00c8e0 100%);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: shimmer 5s ease-in-out infinite;
+            letter-spacing: 1px;
+            text-shadow: none;
+        }
+        @keyframes shimmer {
+            0%, 100% { background-position: 0% 50%; }
+            50%       { background-position: 100% 50%; }
+        }
+        header p { margin: 0; font-size: 0.78rem; color: #4a7aaa; }
+        /* ── Layout ── */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 330px 1fr;
+            height: calc(100vh - 69px);
+        }
+        .sidebar {
+            background: rgba(4, 12, 30, 0.96);
+            border-right: 1px solid var(--border);
             overflow-y: auto;
-            background: #f9f9f9;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            padding: 10px;
-            margin-bottom: 10px;
-            font-size: 0.9rem;
-            line-height: 1.5;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 11px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0,150,200,0.3) transparent;
         }
-        .chat-user { color: #1a56a0; font-weight: bold; }
-        .chat-ai   { color: #1a6e2e; }
-        .chat-err  { color: #a01a1a; }
-        #chatInputRow { display: flex; gap: 8px; }
-        #chatInput { flex: 1; padding: 6px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem; }
-        #chatSend { padding: 6px 16px; background: #1a56a0; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
-        #chatSend:disabled { background: #aaa; cursor: default; }
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        #map { flex: 1; min-height: 0; }
+        #plotlyChart {
+            height: 270px;
+            background: rgba(4,12,30,0.98);
+            border-top: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        /* ── Cards ── */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 13px;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 4px 22px rgba(0,0,0,0.45),
+                        inset 0 1px 0 rgba(255,255,255,0.04);
+            transition: border-color 0.25s;
+        }
+        .card:hover { border-color: rgba(0,180,220,0.42); }
+        .card h3 {
+            margin: 0 0 10px;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 1.6px;
+            color: var(--accent);
+            font-weight: 700;
+        }
+        /* ── Form ── */
+        #routeForm { display: flex; flex-direction: column; gap: 8px; }
+        .input-group label {
+            display: block;
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #4a7aaa;
+            margin-bottom: 4px;
+        }
+        .input-row { display: flex; gap: 6px; }
+        .input-row input { flex: 1; }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px 10px;
+            background: rgba(0,18,48,0.85);
+            border: 1px solid rgba(0,120,180,0.32);
+            border-radius: 6px;
+            color: var(--text-bright);
+            font-size: 0.84rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            outline: none;
+        }
+        input[type="text"]:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(0,200,224,0.14);
+        }
+        input[type="text"]::placeholder { color: #2a4a6a; }
+        .geo-hint {
+            font-size: 0.68rem;
+            color: #3a5a7a;
+            margin: 3px 0 0;
+            min-height: 13px;
+        }
+        .geo-hint.resolving { color: var(--warn); }
+        .geo-hint.resolved  { color: var(--ok); }
+        .geo-hint.error     { color: var(--danger); }
+        .btn-primary {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            background: linear-gradient(135deg, var(--accent2), var(--accent));
+            color: #fff;
+            font-size: 0.84rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #0066dd, #00d8f0);
+            box-shadow: 0 4px 18px rgba(0,200,224,0.3);
+            transform: translateY(-1px);
+        }
+        .btn-primary:active { transform: translateY(0); }
+        .btn-primary:disabled {
+            background: rgba(80,100,130,0.35);
+            color: #3a5070;
+            cursor: default;
+            transform: none;
+            box-shadow: none;
+        }
+        .btn-icon {
+            flex-shrink: 0;
+            padding: 8px 10px;
+            background: rgba(0,80,140,0.28);
+            border: 1px solid rgba(0,140,190,0.3);
+            border-radius: 6px;
+            color: var(--accent);
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-icon:hover { background: rgba(0,80,140,0.5); border-color: var(--accent); }
+        /* ── Conditions summary ── */
+        .conditions-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 7px;
+        }
+        .cond-item {
+            text-align: center;
+            padding: 7px 4px;
+            background: rgba(0,18,48,0.5);
+            border-radius: 6px;
+            border: 1px solid rgba(0,90,140,0.2);
+        }
+        .cond-label {
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 0.9px;
+            color: #3a6a8a;
+            margin-bottom: 3px;
+        }
+        .cond-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-bright);
+        }
+        .cond-value.danger { color: var(--danger); }
+        .cond-value.warn   { color: var(--warn); }
+        .cond-value.ok     { color: var(--ok); }
+        .cond-unit { font-size: 0.62rem; color: #3a6a8a; }
+        /* ── Status dot ── */
+        .status-dot {
+            display: inline-block;
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: var(--ok);
+            box-shadow: 0 0 6px var(--ok);
+            margin-right: 5px;
+            animation: pulse 2.2s ease-in-out infinite;
+        }
+        .status-dot.loading { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+        /* ── Spinner ── */
+        .spinner {
+            display: none;
+            width: 16px; height: 16px;
+            border: 2px solid rgba(0,200,224,0.2);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            margin: 4px auto 0;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        /* ── NOAA badge ── */
+        .noaa-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.68rem;
+            color: #4a9aff;
+            background: rgba(0,50,130,0.22);
+            border: 1px solid rgba(0,90,190,0.3);
+            border-radius: 20px;
+            padding: 2px 8px;
+            margin-bottom: 4px;
+        }
+        /* ── AI Chat ── */
+        #chatLog {
+            height: 150px;
+            overflow-y: auto;
+            background: rgba(0,8,28,0.65);
+            border: 1px solid rgba(0,100,160,0.2);
+            border-radius: 6px;
+            padding: 8px 10px;
+            margin-bottom: 8px;
+            font-size: 0.8rem;
+            line-height: 1.55;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0,150,200,0.3) transparent;
+        }
+        .chat-user { color: #5ab0f8; font-weight: 600; }
+        .chat-ai   { color: #5adba0; }
+        .chat-err  { color: var(--danger); }
+        #chatInputRow { display: flex; gap: 6px; }
+        #chatInput {
+            flex: 1;
+            padding: 7px 10px;
+            background: rgba(0,18,48,0.85);
+            border: 1px solid rgba(0,120,180,0.3);
+            border-radius: 6px;
+            color: var(--text-bright);
+            font-size: 0.8rem;
+            outline: none;
+        }
+        #chatInput:focus { border-color: var(--accent); }
+        #chatSend {
+            padding: 7px 13px;
+            background: linear-gradient(135deg, var(--accent2), var(--accent));
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+        #chatSend:disabled { background: rgba(80,100,130,0.35); color: #3a5070; cursor: default; }
+        #noDataMsg {
+            font-size: 0.78rem;
+            color: #3a5a7a;
+            text-align: center;
+            padding: 10px 0;
+            display: none;
+        }
+        /* ── Leaflet overrides ── */
+        .leaflet-container { background: #060d1a; }
+        .leaflet-popup-content-wrapper {
+            background: rgba(4,14,38,0.96);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.65);
+        }
+        .leaflet-popup-tip { background: rgba(4,14,38,0.96); }
+        .buoy-popup h4 { margin: 0 0 7px; color: var(--accent); font-size: 0.82rem; }
+        .buoy-popup table { border-collapse: collapse; font-size: 0.76rem; width: 100%; }
+        .buoy-popup td { padding: 2px 0; }
+        .buoy-popup td:last-child { color: var(--text-bright); font-weight: 600; text-align: right; padding-left: 8px; }
+        /* ── Responsive ── */
+        @media (max-width: 780px) {
+            .main-grid { grid-template-columns: 1fr; height: auto; }
+            .sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+            .main-content { height: 560px; }
+        }
     </style>
 </head>
 <body>
-    <h1>Welcome to Condition Aggregator</h1>
-    <form id="routeForm">
-        <input type="text" id="start" placeholder="Start Location" />
-        <input type="text" id="end" placeholder="End Location" />
-        <button type="submit">Compute Route</button>
-    </form>
-    <div id="map" style="height: 500px;"></div>
-    <div id="plotlyChart"></div>
+    <header>
+        <h1>⚓ Condition Aggregator</h1>
+        <p>Real-time maritime route conditions via NOAA / NDBC buoy network</p>
+    </header>
 
-    <!-- AI Assistant (Gemini Flash Lite) -->
-    <div id="aiPanel">
-        <h2>🤖 AI Maritime Assistant (Gemini Flash Lite)</h2>
-        <div id="chatLog"></div>
-        <div id="chatInputRow">
-            <input id="chatInput" type="text" placeholder="Ask about conditions, route safety, weather…" />
-            <button id="chatSend">Send</button>
+    <div class="main-grid">
+        <!-- ── Left Sidebar ── -->
+        <aside class="sidebar">
+
+            <!-- Route Planning -->
+            <div class="card">
+                <h3>📍 Route Planning</h3>
+                <form id="routeForm">
+                    <div class="input-group">
+                        <label>Start Location</label>
+                        <div class="input-row">
+                            <input type="text" id="start" placeholder="City name or lat,lon" />
+                            <button type="button" class="btn-icon" id="geoStart" title="Use my GPS location">📡</button>
+                        </div>
+                        <div class="geo-hint" id="startHint"></div>
+                    </div>
+                    <div class="input-group">
+                        <label>End Location</label>
+                        <div class="input-row">
+                            <input type="text" id="end" placeholder="City name or lat,lon" />
+                        </div>
+                        <div class="geo-hint" id="endHint"></div>
+                    </div>
+                    <button type="submit" class="btn-primary" id="computeBtn">🌊 Compute Route</button>
+                </form>
+                <p style="font-size:0.68rem;color:#2a4a6a;margin:7px 0 0;">
+                    Enter city names or lat,lon (e.g. 24.14,-110.31). Drag markers to adjust.
+                </p>
+            </div>
+
+            <!-- Conditions Summary -->
+            <div class="card">
+                <h3><span class="status-dot" id="condDot"></span>Route Conditions</h3>
+                <div class="spinner" id="condSpinner"></div>
+                <div id="noDataMsg">No NOAA buoy data found near this route.</div>
+                <div class="conditions-grid" id="conditionsGrid">
+                    <div class="cond-item">
+                        <div class="cond-label">Max Wind</div>
+                        <div class="cond-value" id="maxWind">—</div>
+                        <div class="cond-unit">knots</div>
+                    </div>
+                    <div class="cond-item">
+                        <div class="cond-label">Max Waves</div>
+                        <div class="cond-value" id="maxWave">—</div>
+                        <div class="cond-unit">feet</div>
+                    </div>
+                    <div class="cond-item">
+                        <div class="cond-label">Avg Wind</div>
+                        <div class="cond-value" id="avgWind">—</div>
+                        <div class="cond-unit">knots</div>
+                    </div>
+                    <div class="cond-item">
+                        <div class="cond-label">Buoys</div>
+                        <div class="cond-value" id="dataPoints">—</div>
+                        <div class="cond-unit">sampled</div>
+                    </div>
+                </div>
+                <div style="margin-top:8px;">
+                    <span class="noaa-badge">🛰️ NOAA / NDBC</span>
+                    <span id="stationCount" style="font-size:0.7rem;color:#3a6a8a;"></span>
+                </div>
+            </div>
+
+            <!-- AI Assistant -->
+            <div class="card">
+                <h3>🤖 Maritime AI Assistant</h3>
+                <div id="chatLog"></div>
+                <div id="chatInputRow">
+                    <input id="chatInput" type="text" placeholder="Ask about conditions, safety…" />
+                    <button id="chatSend">Send</button>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- ── Map + 3-D Chart ── -->
+        <div class="main-content">
+            <div id="map"></div>
+            <div id="plotlyChart"></div>
         </div>
     </div>
 </body>
