@@ -8,6 +8,36 @@
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script src="./app.js" defer></script>
+    <style>
+        body { font-family: sans-serif; margin: 0; padding: 16px; }
+        h1 { margin-top: 0; }
+        #aiPanel {
+            margin-top: 24px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 16px;
+            max-width: 700px;
+        }
+        #aiPanel h2 { margin-top: 0; font-size: 1.1rem; }
+        #chatLog {
+            height: 220px;
+            overflow-y: auto;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        .chat-user { color: #1a56a0; font-weight: bold; }
+        .chat-ai   { color: #1a6e2e; }
+        .chat-err  { color: #a01a1a; }
+        #chatInputRow { display: flex; gap: 8px; }
+        #chatInput { flex: 1; padding: 6px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem; }
+        #chatSend { padding: 6px 16px; background: #1a56a0; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+        #chatSend:disabled { background: #aaa; cursor: default; }
+    </style>
 </head>
 <body>
     <h1>Welcome to Condition Aggregator</h1>
@@ -18,5 +48,15 @@
     </form>
     <div id="map" style="height: 500px;"></div>
     <div id="plotlyChart"></div>
+
+    <!-- AI Assistant (Gemini Flash Lite) -->
+    <div id="aiPanel">
+        <h2>🤖 AI Maritime Assistant (Gemini Flash Lite)</h2>
+        <div id="chatLog"></div>
+        <div id="chatInputRow">
+            <input id="chatInput" type="text" placeholder="Ask about conditions, route safety, weather…" />
+            <button id="chatSend">Send</button>
+        </div>
+    </div>
 </body>
 </html>

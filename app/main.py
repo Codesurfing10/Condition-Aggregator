@@ -1,7 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import requests
 from bs4 import BeautifulSoup
+import os
+import google.generativeai as genai
 
 app = FastAPI()
 
@@ -12,6 +14,20 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# Configure Gemini if API key is available
+_GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+if _GEMINI_API_KEY:
+    genai.configure(api_key=_GEMINI_API_KEY)
+
+_SYSTEM_PROMPT = (
+    "You are a maritime safety assistant embedded in a real-time ocean condition aggregator. "
+    "Your role is to help mariners interpret weather and sea conditions, evaluate route safety, "
+    "and provide concise, actionable guidance. "
+    "Always recommend caution when conditions are uncertain. "
+    "Respond in plain, clear language suitable for use at sea. "
+    "If given specific wind speeds, wave heights, or route details, use them in your answer."
 )
 
 @app.get("/health")
@@ -57,3 +73,41 @@ async def get_route(route: dict):
         "vessel_recommendation": {"label": "TBD", "summary": "TODO"},
         "note": "Stub: implement optimum routing",
     }
+
+@app.post("/api/chat")
+async def chat(body: dict):
+    """
+    AI assistant endpoint powered by Gemini 2.0 Flash Lite.
+    Accepts: { "message": "...", "context": { optional route/conditions data } }
+    Returns: { "reply": "..." }
+    """
+    if not _GEMINI_API_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="AI assistant is not configured. Set the GEMINI_API_KEY environment variable.",
+        )
+
+    user_message = (body.get("message") or "").strip()
+    if not user_message:
+        raise HTTPException(status_code=400, detail="'message' field is required.")
+
+    # Optionally inject route/conditions context provided by the frontend
+    context = body.get("context")
+    if context:
+        context_text = (
+            "\n\nCurrent route context:\n"
+            + "\n".join(f"  {k}: {v}" for k, v in context.items())
+        )
+        full_message = user_message + context_text
+    else:
+        full_message = user_message
+
+    try:
+        model = genai.GenerativeModel(
+            model_name="gemini-2.0-flash-lite",
+            system_instruction=_SYSTEM_PROMPT,
+        )
+        response = model.generate_content(full_message)
+        return {"reply": response.text}
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"AI model error: {exc}") from exc
