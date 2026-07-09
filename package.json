@@ -1,0 +1,41 @@
+{
+  "name": "condition-aggregator-desktop",
+  "version": "0.1.0",
+  "description": "Condition Aggregator with 3D Cesium view and Electron desktop app",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "build": "electron-builder --publish never"
+  },
+  "author": "Codesurfing10",
+  "license": "MIT",
+  "dependencies": {
+    "cesium": "^1.104",
+    "node-fetch": "^2.6.7"
+  },
+  "devDependencies": {
+    "electron": "^26.0.0",
+    "electron-builder": "^24.6.0"
+  },
+  "build": {
+    "appId": "com.codesurfing.condition-aggregator",
+    "productName": "Condition Aggregator",
+    "files": [
+      "**/*"
+    ],
+    "directories": {
+      "buildResources": "build"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false
+    },
+    "mac": {
+      "target": ["dmg"]
+    },
+    "linux": {
+      "target": ["AppImage"]
+    }
+  }
+}
