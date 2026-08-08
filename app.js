@@ -1,5 +1,5 @@
 // app.js — Condition Aggregator
-// Geolocation + NOAA/NDBC integration + 3-D conditions chart
+// Geolocation + NOAA/NDBC integration + 3-D conditions chart + Cesium 3D globe
 
 const API_BASE    = 'https://condition-aggregator-api.onrender.com';
 const NOMINATIM   = 'https://nominatim.openstreetmap.org/search';
@@ -9,7 +9,7 @@ const DEFAULTS = {
     end:   { lat: 49.2827, lon: -123.1207, label: 'Vancouver, BC' },
 };
 
-// ── DOM refs ──────────────────────────────────────────────────────────────────
+// ── DOM refs ───────────────────────────────────────────────────────────
 const form         = document.getElementById('routeForm');
 const startEl      = document.getElementById('start');
 const endEl        = document.getElementById('end');
@@ -26,13 +26,14 @@ const stationCountEl = document.getElementById('stationCount');
 const noDataMsg    = document.getElementById('noDataMsg');
 const condGrid     = document.getElementById('conditionsGrid');
 
-// ── State ─────────────────────────────────────────────────────────────────────
+// ── State ────────────────────────────────────────────────────────────
 let startCoords = { ...DEFAULTS.start };
 let endCoords   = { ...DEFAULTS.end };
 let currentRouteContext = null;
 let buoyLayer   = null;
+let cesiumViewer = null;
 
-// ── Leaflet Map ───────────────────────────────────────────────────────────────
+// ── Leaflet Map ──────────────────────────────────────────────────────────
 const map = L.map('map').setView([36, -120], 4);
 
 // ESRI Ocean base — much better for maritime use
@@ -54,7 +55,66 @@ buoyLayer = L.layerGroup().addTo(map);
 
 let startMarker = null, endMarker = null, routeLine = null;
 
-// ── Marker helpers ────────────────────────────────────────────────────────────
+// ── Initialize Cesium ────────────────────────────────────────────────────────
+async function initCesium() {
+    try {
+        if (window.Cesium) {
+            const Cesium = window.Cesium;
+            Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI1OGQ3MjZkNy1iOTFjLTRiYWItYjMyZi02OTJlODhlYWI2MzYiLCJpZCI6OTY2NjYsImlhdCI6MTY4NTA1MDA0OCwiZXhwIjoxNzE2NTg2MDQ4fQ.TPQE_YqOVGZKhbr-e2qCKYpOBDkfJPYaRQIkATSLUPo';
+            
+            cesiumViewer = new Cesium.Viewer('cesiumContainer', {
+                timeline: false,
+                animation: false,
+                sceneModePicker: true,
+                baseLayerPicker: false,
+                geocoder: false,
+                homeButton: true,
+            });
+            
+            // Set initial view
+            cesiumViewer.camera.setView({
+                destination: Cesium.Cartesian3.fromDegrees(-110, 36, 2500000),
+            });
+            
+            console.log('Cesium viewer initialized successfully');
+            return true;
+        }
+    } catch (err) {
+        console.warn('Cesium initialization failed:', err.message);
+    }
+    return false;
+}
+
+function addRouteToCesium(routeCoords) {
+    if (!cesiumViewer || !routeCoords || routeCoords.length === 0) return;
+    
+    const Cesium = window.Cesium;
+    const positions = [];
+    routeCoords.forEach(p => {
+        positions.push(Cesium.Cartesian3.fromDegrees(p.lon, p.lat, 0.0));
+    });
+
+    // Add route polyline
+    cesiumViewer.entities.add({
+        polyline: {
+            positions,
+            width: 4,
+            material: Cesium.Color.CYAN,
+            clampToGround: true,
+        }
+    });
+    
+    // Zoom to route
+    cesiumViewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(
+            (routeCoords[0].lon + routeCoords[routeCoords.length - 1].lon) / 2,
+            (routeCoords[0].lat + routeCoords[routeCoords.length - 1].lat) / 2,
+            1500000
+        ),
+    });
+}
+
+// ── Marker helpers ─────────────────────────────────────────────────────────
 function makeMarker(color, label) {
     return L.divIcon({
         className: '',
@@ -143,7 +203,7 @@ document.getElementById('geoStart').addEventListener('click', () => {
     );
 });
 
-// ── Route Drawing ─────────────────────────────────────────────────────────────
+// ── Route Drawing ─────────────────────────────────────────────────────────
 function setMarkers(start, end) {
     if (startMarker) startMarker.remove();
     if (endMarker)   endMarker.remove();
@@ -187,7 +247,7 @@ function drawRoute(points) {
     ).addTo(map);
 }
 
-// ── NOAA Buoy Markers ─────────────────────────────────────────────────────────
+// ── NOAA Buoy Markers ───────────────────────────────────────────────────────
 function buildPopupHtml(station, cond) {
     const rows = [
         ['Wind',       cond.wind_speed_knots != null ? `${cond.wind_speed_knots} kts` : '—'],
@@ -311,7 +371,7 @@ function renderChart3D(samplePoints) {
     );
 }
 
-// ── Conditions Summary ────────────────────────────────────────────────────────
+// ── Conditions Summary ───────────────────────────────────────────────────────
 function setValueColor(el, value, warnAt, dangerAt) {
     el.classList.remove('ok', 'warn', 'danger');
     if (value == null) return;
@@ -346,7 +406,7 @@ function updateSummary(summary) {
     };
 }
 
-// ── Main Compute ──────────────────────────────────────────────────────────────
+// ── Main Compute ─────────────────────────────────────────────────────────
 async function computeAndRender() {
     computeBtn.disabled = true;
     condDot.classList.add('loading');
@@ -382,6 +442,11 @@ async function computeAndRender() {
             drawRoute(data.route_sample_points);
             renderBuoyMarkers(data.route_sample_points);
             renderChart3D(data.route_sample_points);
+            
+            // Add route to Cesium if available
+            if (cesiumViewer) {
+                addRouteToCesium(data.route_sample_points);
+            }
         }
         updateSummary(data.summary);
     } catch (err) {
@@ -399,7 +464,7 @@ form.addEventListener('submit', async e => {
     await computeAndRender();
 });
 
-// ── AI Chat ───────────────────────────────────────────────────────────────────
+// ── AI Chat ───────────────────────────────────────────────────────────
 const chatLog   = document.getElementById('chatLog');
 const chatInput = document.getElementById('chatInput');
 const chatSend  = document.getElementById('chatSend');
@@ -454,9 +519,14 @@ async function sendChat() {
 chatSend.addEventListener('click', sendChat);
 chatInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
 
-// ── First render ──────────────────────────────────────────────────────────────
+// ── First render ─────────────────────────────────────────────────────────
 // Use lat,lon strings so the geocode function can parse them directly without
 // making unnecessary Nominatim requests on the initial load.
 startEl.value = `${DEFAULTS.start.lat},${DEFAULTS.start.lon}`;
 endEl.value   = `${DEFAULTS.end.lat},${DEFAULTS.end.lon}`;
-computeAndRender();
+
+// Initialize Cesium on window load
+window.addEventListener('load', async () => {
+    await initCesium();
+    computeAndRender();
+});
