@@ -238,6 +238,75 @@
             margin: 4px auto 0;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Forecast panels (Pro) ── */
+        .forecast-card .forecast-teaser {
+            font-size: 0.78rem;
+            color: #9ab8d4;
+            line-height: 1.45;
+            margin: 0 0 8px;
+        }
+        .forecast-card .forecast-teaser strong { color: #ffd080; }
+        .forecast-sections { display: flex; flex-direction: column; gap: 8px; }
+        .fc-section {
+            background: rgba(0,18,48,0.45);
+            border: 1px solid rgba(0,90,140,0.25);
+            border-radius: 8px;
+            padding: 8px 9px;
+        }
+        .fc-section h4 {
+            margin: 0 0 6px;
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--accent);
+            font-weight: 700;
+        }
+        .fc-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 0.76rem;
+            padding: 2px 0;
+            border-bottom: 1px solid rgba(0,80,120,0.15);
+        }
+        .fc-row:last-child { border-bottom: none; }
+        .fc-row .fc-k { color: #5a8aaa; }
+        .fc-row .fc-v { color: var(--text-bright); font-weight: 600; text-align: right; }
+        .fc-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+        .fc-chip {
+            font-size: 0.68rem;
+            padding: 3px 7px;
+            border-radius: 12px;
+            background: rgba(0,60,100,0.35);
+            border: 1px solid rgba(0,140,190,0.28);
+            color: #b8d4ea;
+        }
+        .fc-chip em { color: var(--accent); font-style: normal; font-weight: 700; }
+        .fc-attr {
+            font-size: 0.62rem;
+            color: #3a6a8a;
+            margin-top: 8px;
+            line-height: 1.35;
+        }
+        .fc-locked {
+            text-align: center;
+            padding: 10px 6px;
+        }
+        .fc-locked p { margin: 0 0 8px; font-size: 0.8rem; color: #9ab8d4; line-height: 1.4; }
+        .btn-upgrade-inline {
+            display: inline-block;
+            padding: 7px 14px;
+            border-radius: 7px;
+            border: 1px solid rgba(255,170,0,0.45);
+            background: linear-gradient(135deg, rgba(120,60,0,0.55), rgba(80,40,0,0.4));
+            color: #ffd080;
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .btn-upgrade-inline:hover { border-color: #ffaa00; }
+        #forecastPanel { display: none; }
         /* ── NOAA badge ── */
         .noaa-badge {
             display: inline-flex;
@@ -431,7 +500,7 @@
     <header>
         <div class="header-left">
             <h1>⚓ Condition Aggregator</h1>
-            <p>Real-time maritime route conditions via NOAA / NDBC buoy network</p>
+            <p>Live NOAA buoys + anticipated wind, waves, weather & tides along your route</p>
         </div>
         <div class="header-account" id="headerAccount">
             <span class="plan-pill" id="planPill">Free</span>
@@ -464,7 +533,7 @@
                         <input type="password" id="authPassword" placeholder="Password (8+ chars)" autocomplete="current-password" required minlength="8" />
                         <button type="submit" class="btn-primary" id="authSubmit">Log in</button>
                     </form>
-                    <p class="auth-msg" id="authMsg">Free: 3 routes/day · 1 AI chat/day · 3 saved routes</p>
+                    <p class="auth-msg" id="authMsg">Free: live buoys · 3 routes/day · forecasts are Pro (short preview)</p>
                 </div>
                 <div id="authUser" style="display:none;">
                     <p style="margin:0 0 6px;font-size:0.84rem;"><strong id="userEmailLabel"></strong></p>
@@ -542,6 +611,37 @@
                     <span class="noaa-badge">🛰️ NOAA / NDBC</span>
                     <span id="stationCount" style="font-size:0.7rem;color:#3a6a8a;"></span>
                 </div>
+            </div>
+
+
+            <!-- Anticipated forecasts (Pro) -->
+            <div class="card forecast-card" id="forecastCard">
+                <h3>🌤 Anticipated Conditions</h3>
+                <div class="spinner" id="forecastSpinner"></div>
+                <div id="forecastLocked" class="fc-locked" style="display:none;">
+                    <p>Live NOAA buoys stay free. <strong style="color:#ffd080;">Pro</strong> unlocks anticipated wind, waves, weather &amp; tides along your route.</p>
+                    <button type="button" class="btn-upgrade-inline" id="forecastUpgradeBtn">Upgrade to Pro</button>
+                </div>
+                <div id="forecastPanel">
+                    <p class="forecast-teaser" id="forecastTeaser" style="display:none;"></p>
+                    <div class="conditions-grid" id="forecastSummaryGrid" style="display:none;margin-bottom:8px;">
+                        <div class="cond-item">
+                            <div class="cond-label">Fcst Max Wind</div>
+                            <div class="cond-value" id="fcMaxWind">—</div>
+                            <div class="cond-unit">knots</div>
+                        </div>
+                        <div class="cond-item">
+                            <div class="cond-label">Fcst Max Waves</div>
+                            <div class="cond-value" id="fcMaxWave">—</div>
+                            <div class="cond-unit">feet</div>
+                        </div>
+                    </div>
+                    <div class="forecast-sections" id="forecastSections"></div>
+                    <p class="fc-attr" id="forecastAttr"></p>
+                </div>
+                <p style="font-size:0.62rem;color:#2a4a6a;margin:8px 0 0;">
+                    Forecasts are advisory / approximate — NOT for navigation.
+                </p>
             </div>
 
             <!-- AI Assistant -->

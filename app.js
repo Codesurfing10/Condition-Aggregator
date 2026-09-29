@@ -760,6 +760,211 @@ function updateSummary(summary) {
     };
 }
 
+
+// ── Anticipated forecasts (Pro / preview teaser) ─────────────────────────
+function fmtKnots(v) {
+    return v == null || Number.isNaN(v) ? '—' : `${Number(v).toFixed(0)} kn`;
+}
+function fmtFt(v) {
+    return v == null || Number.isNaN(v) ? '—' : `${Number(v).toFixed(1)} ft`;
+}
+function fmtTempC(v) {
+    return v == null || Number.isNaN(v) ? '—' : `${Number(v).toFixed(0)}°C`;
+}
+function shortTime(iso) {
+    if (!iso) return '—';
+    try {
+        const d = new Date(iso.endsWith('Z') ? iso : iso + 'Z');
+        return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    } catch (_) {
+        return iso;
+    }
+}
+
+function renderForecastLocked(show) {
+    const locked = document.getElementById('forecastLocked');
+    const panel = document.getElementById('forecastPanel');
+    if (locked) locked.style.display = show ? '' : 'none';
+    if (panel && show) panel.style.display = 'none';
+}
+
+function renderForecastData(data, { isPreview = false, upgradeMsg = null } = {}) {
+    const panel = document.getElementById('forecastPanel');
+    const locked = document.getElementById('forecastLocked');
+    const sections = document.getElementById('forecastSections');
+    const teaser = document.getElementById('forecastTeaser');
+    const summaryGrid = document.getElementById('forecastSummaryGrid');
+    const attr = document.getElementById('forecastAttr');
+    if (!panel || !sections) return;
+
+    if (locked) locked.style.display = 'none';
+    panel.style.display = '';
+    sections.innerHTML = '';
+
+    if (isPreview || data.teaser) {
+        if (teaser) {
+            teaser.style.display = '';
+            teaser.innerHTML = `<strong>Pro preview</strong> — short sample only. ` +
+                `${escapeHtml(upgradeMsg || data.upgrade_message || 'Upgrade for full route forecasts.')}`;
+        }
+    } else if (teaser) {
+        teaser.style.display = 'none';
+    }
+
+    const sum = data.summary || {};
+    if (summaryGrid) {
+        summaryGrid.style.display = '';
+        const wEl = document.getElementById('fcMaxWind');
+        const vEl = document.getElementById('fcMaxWave');
+        if (wEl) {
+            wEl.textContent = sum.max_wind_knots != null ? sum.max_wind_knots : '—';
+            setValueColor(wEl, sum.max_wind_knots, 15, 25);
+        }
+        if (vEl) {
+            vEl.textContent = sum.max_wave_ft != null ? Number(sum.max_wave_ft).toFixed(1) : '—';
+            setValueColor(vEl, sum.max_wave_ft, 6, 12);
+        }
+    }
+
+    for (const pt of (data.points || [])) {
+        const s = pt.summary || {};
+        const sec = document.createElement('div');
+        sec.className = 'fc-section';
+        const title = (pt.label || 'point').toUpperCase();
+        sec.innerHTML = `<h4>📍 ${escapeHtml(title)} · ${pt.lat.toFixed(2)}, ${pt.lon.toFixed(2)}</h4>`;
+        const rows = [
+            ['Weather', s.next_weather || '—'],
+            ['Temp (now)', fmtTempC(s.next_temp_c)],
+            ['Temp range', `${fmtTempC(s.min_temp_c)} – ${fmtTempC(s.max_temp_c)}`],
+            ['Max precip chance', s.max_precip_prob_pct != null ? `${s.max_precip_prob_pct}%` : '—'],
+            ['Max wind', fmtKnots(s.max_wind_knots)],
+            ['Max gust', fmtKnots(s.max_gust_knots)],
+            ['Max waves', fmtFt(s.max_wave_ft)],
+        ];
+        for (const [k, v] of rows) {
+            const row = document.createElement('div');
+            row.className = 'fc-row';
+            row.innerHTML = `<span class="fc-k">${escapeHtml(k)}</span><span class="fc-v">${escapeHtml(String(v))}</span>`;
+            sec.appendChild(row);
+        }
+        // next few hourly chips (wind / waves)
+        const chips = document.createElement('div');
+        chips.className = 'fc-chips';
+        const windH = (pt.wind && pt.wind.hourly) || [];
+        const waveH = (pt.waves && pt.waves.hourly) || [];
+        const n = Math.min(4, Math.max(windH.length, waveH.length));
+        for (let i = 0; i < n; i++) {
+            const w = windH[i] || {};
+            const wv = waveH[i] || {};
+            const chip = document.createElement('span');
+            chip.className = 'fc-chip';
+            chip.innerHTML =
+                `<em>${escapeHtml(shortTime(w.time || wv.time))}</em> · ` +
+                `${escapeHtml(fmtKnots(w.wind_speed_knots))} · ${escapeHtml(fmtFt(wv.wave_height_ft))}`;
+            chips.appendChild(chip);
+        }
+        if (n) sec.appendChild(chips);
+        sections.appendChild(sec);
+    }
+
+    // Tides
+    for (const td of (data.tides || [])) {
+        const st = td.station || {};
+        const events = (td.predictions && td.predictions.events) || [];
+        const sec = document.createElement('div');
+        sec.className = 'fc-section';
+        sec.innerHTML = `<h4>🌊 Tides · ${escapeHtml(st.name || st.id || 'station')} ` +
+            `(${st.distance_km != null ? st.distance_km + ' km' : 'near ' + (td.near_label || '')})</h4>`;
+        if (!events.length) {
+            const row = document.createElement('div');
+            row.className = 'fc-row';
+            row.innerHTML = `<span class="fc-k">Predictions</span><span class="fc-v">Unavailable</span>`;
+            sec.appendChild(row);
+        } else {
+            for (const ev of events.slice(0, isPreview ? 2 : 8)) {
+                const row = document.createElement('div');
+                row.className = 'fc-row';
+                row.innerHTML =
+                    `<span class="fc-k">${escapeHtml(ev.type)} · ${escapeHtml(shortTime(ev.time))}</span>` +
+                    `<span class="fc-v">${escapeHtml(fmtFt(ev.height_ft))}</span>`;
+                sec.appendChild(row);
+            }
+        }
+        sections.appendChild(sec);
+    }
+
+    if (attr) {
+        const a = data.attribution || {};
+        attr.textContent =
+            `Sources: ${a.weather_wind || 'Open-Meteo'} · ${a.waves || 'Open-Meteo Marine'} · ${a.tides || 'NOAA CO-OPS'}. ` +
+            (data.disclaimer || 'Advisory only — not for navigation.');
+    }
+
+    if (isPreview || data.teaser) {
+        const up = document.createElement('div');
+        up.className = 'fc-locked';
+        up.style.marginTop = '8px';
+        up.innerHTML = `<button type="button" class="btn-upgrade-inline" id="forecastUpgradeBtn2">Unlock full forecasts — Upgrade</button>`;
+        sections.appendChild(up);
+        document.getElementById('forecastUpgradeBtn2')?.addEventListener('click', () => {
+            document.getElementById('upgradeBtn')?.click();
+        });
+    }
+}
+
+async function fetchAndRenderForecast(start, end, pathPoints) {
+    const spinner = document.getElementById('forecastSpinner');
+    if (spinner) spinner.style.display = 'block';
+    renderForecastLocked(false);
+
+    const plan = (currentUser && currentUser.plan) || (currentQuota && currentQuota.plan) || 'anonymous';
+    const pro = !!(currentUser && (currentUser.forecasts_enabled || currentUser.plan === 'pro'))
+        || (currentQuota && currentQuota.forecasts_enabled);
+    const preview = !pro;
+
+    try {
+        const body = {
+            start: { lat: start.lat, lon: start.lon },
+            end: { lat: end.lat, lon: end.lon },
+            path: pathPoints,
+            hours: preview ? 6 : 48,
+            points: preview ? 1 : 3,
+        };
+        const res = await apiFetch(`/api/forecast?preview=${preview ? 'true' : 'false'}`, {
+            method: 'POST',
+            body,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 402) {
+            // Try marketing preview once if full request was blocked
+            if (!preview) {
+                renderForecastLocked(true);
+                return;
+            }
+            const prev = await apiFetch('/api/forecast?preview=true', { method: 'POST', body });
+            const pdata = await prev.json().catch(() => ({}));
+            if (prev.ok) {
+                renderForecastData(pdata, { isPreview: true, upgradeMsg: detailMessage(data, null) });
+            } else {
+                renderForecastLocked(true);
+            }
+            return;
+        }
+        if (!res.ok) {
+            console.warn('Forecast API:', detailMessage(data, res.status));
+            renderForecastLocked(!pro);
+            return;
+        }
+        renderForecastData(data, { isPreview: !!(preview || data.teaser || data.preview) });
+        if (data.quota) { currentQuota = data.quota; renderAccountUI(); }
+    } catch (err) {
+        console.warn('Forecast fetch failed:', err.message);
+        renderForecastLocked(!pro);
+    } finally {
+        if (spinner) spinner.style.display = 'none';
+    }
+}
+
 // ── Main Compute ─────────────────────────────────────────────────────────
 async function computeAndRender() {
     computeBtn.disabled = true;
@@ -843,6 +1048,8 @@ async function computeAndRender() {
             }
         }
         updateSummary(data.summary);
+        // Anticipated wind / waves / weather / tides (Pro; free gets teaser)
+        await fetchAndRenderForecast(startCoords, endCoords, pathPoints);
     } catch (err) {
         console.warn('Route API error:', err.message);
         renderChart3D([]);
@@ -851,6 +1058,7 @@ async function computeAndRender() {
             `Conditions API unreachable (${err.message}). Route shown is advisory geometry only — NOT for navigation.`,
             true
         );
+        renderForecastLocked(true);
     } finally {
         computeBtn.disabled = false;
         condSpinner.style.display = 'none';
@@ -941,6 +1149,10 @@ endHint.className = 'geo-hint resolved';
 showAdvisory('⚠ Advisory only — NOT for navigation. Compute a route to sample NOAA/NDBC conditions.', true);
 
 initAuthUI();
+
+document.getElementById('forecastUpgradeBtn')?.addEventListener('click', () => {
+    document.getElementById('upgradeBtn')?.click();
+});
 refreshMe();
 
 window.addEventListener('load', async () => {

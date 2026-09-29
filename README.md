@@ -1,6 +1,6 @@
 # Condition Aggregator
 
-Web freemium MVP that samples **NOAA / NDBC** buoy observations along an approximate maritime route and summarizes wind/wave conditions. Optional Gemini-powered chat helps interpret the numbers. Accounts + Stripe test-mode subscriptions gate Pro entitlements.
+Web freemium MVP that samples **NOAA / NDBC** buoy observations along an approximate maritime route and summarizes wind/wave conditions. **Pro** unlocks anticipated wind, waves, weather, and tides along the route (Open-Meteo + NOAA CO-OPS). Optional Gemini chat helps interpret the numbers. Accounts + PayPal (primary) / Stripe gate Pro entitlements.
 
 > **⚠ ADVISORY ONLY — NOT FOR NAVIGATION.**  
 > Routes are coarse, water-preferring estimates. Conditions are interpolated from public buoy reports and may be incomplete, delayed, or wrong. Always use official nautical charts, notices to mariners, and professional forecasts before going to sea.
@@ -10,6 +10,8 @@ Web freemium MVP that samples **NOAA / NDBC** buoy observations along an approxi
 - Plan a start → end route (place names or `lat,lon`)
 - **Water-preferring pathfinding** (coarse A* avoiding land polygons) with graceful straight-line fallback
 - Sample nearby **NDBC** stations for wind, gusts, waves, period, temps, pressure
+- **Pro forecasts** along the route: wind, wave height, weather (temp/precip), and tides
+  (Open-Meteo Forecast + Marine APIs, NOAA CO-OPS predictions; free users get a short teaser)
 - Dark maritime map (Esri Ocean basemap) + Plotly condition chart
 - Optional maritime AI assistant (Gemini) when `GEMINI_API_KEY` is set
 - **Accounts** (email + password, HTTP-only session cookie) stored in SQLite (`data/app.db`)
@@ -25,7 +27,7 @@ Web freemium MVP that samples **NOAA / NDBC** buoy observations along an approxi
 | Auth | passlib/bcrypt + signed JWT session cookie |
 | Billing | Stripe Checkout + Customer Portal (test mode) |
 | Frontend | Vanilla JS (ES modules), Leaflet, Plotly |
-| Data | NOAA NDBC, Nominatim (OSM), Esri Ocean tiles |
+| Data | NOAA NDBC, Open-Meteo, NOAA CO-OPS, Nominatim (OSM), Esri Ocean tiles |
 | Optional | Google Gemini (`google-generativeai`) |
 
 ## Freemium quotas (UTC day)
@@ -36,7 +38,7 @@ Web freemium MVP that samples **NOAA / NDBC** buoy observations along an approxi
 | AI chats / day | 0 (sign up) | 1 | 100 |
 | Saved routes | 0 | 3 | 100 |
 | Live buoys | ✓ | ✓ | ✓ |
-| Forecasts flag | — | — | ✓ (placeholder) |
+| Route forecasts | Teaser | Teaser | ✓ full |
 
 Over quota → **402** (free/anon, with upgrade messaging) or **429** (Pro daily cap). Burst IP rate limit (`RATE_LIMIT_PER_MINUTE`) is separate.
 
@@ -156,6 +158,7 @@ See `.env.example`. **Do not commit secrets.** `data/app.db` is gitignored.
 | `POST` | `/api/stripe/webhook` | Stripe signature | Stripe entitlement flips |
 | `GET/POST/DELETE` | `/api/saved-routes` | Signed in + quota | Favorites |
 | `POST` | `/api/route` | Rate limit + daily quota | Optional water `path` |
+| `GET`/`POST` | `/api/forecast` | Pro (`forecasts_enabled`); `preview=true` for teaser | Wind/waves/weather/tides along route |
 | `POST` | `/api/chat` | Rate limit + daily quota | Needs Gemini; free needs account |
 | `GET` | `/api/geocode` | Rate limit | Nominatim proxy |
 | `GET` | `/api/stations/near` | Rate limit | Nearby NDBC |
@@ -170,6 +173,8 @@ See `.env.example`. **Do not commit secrets.** `data/app.db` is gitignored.
 ## Attribution
 
 - **NOAA / NDBC** — buoy stations and realtime observations  
+- **Open-Meteo** — weather, wind, and marine wave forecasts (https://open-meteo.com)  
+- **NOAA CO-OPS** — tide predictions  
 - **Nominatim / OpenStreetMap** — geocoding  
 - **Esri** — Ocean basemap & reference tiles  
 - Natural Earth–derived land polygons for coarse water routing  
@@ -190,4 +195,4 @@ MIT © 2026 Codesurfing10 / James Gallagher — see [LICENSE](./LICENSE).
 - Legal review of advisory disclaimers; ToS / Privacy / refund policy
 - Email verification, password reset, abuse monitoring
 - Replace Gemini deprecated client (`google.genai`) when convenient
-- Optional: forecasts product behind `forecasts_enabled`
+- Expand forecast horizon / point density and charting polish

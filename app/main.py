@@ -31,6 +31,7 @@ from app.models import SavedRoute, User
 from app.quotas import assert_can_save, consume, usage_snapshot
 from app import stripe_billing
 from app import paypal_billing
+from app import forecasts as forecast_svc
 
 # Optional Gemini — app starts fine without the package or key
 try:
@@ -40,8 +41,8 @@ except ImportError:  # pragma: no cover
 
 app = FastAPI(
     title="Condition Aggregator API",
-    description="Advisory maritime route conditions via NOAA/NDBC. Not for navigation.",
-    version="0.2.0",
+    description="Advisory maritime route conditions via NOAA/NDBC + forecasts. Not for navigation.",
+    version="0.3.0",
 )
 
 app.add_middleware(
@@ -813,6 +814,123 @@ def get_route(
         "quota": quota,
         "forecasts_enabled": bool(user and user.forecasts_enabled),
     }
+
+
+
+# ── Route forecasts (Pro: wind / waves / weather / tides) ─────────────────────
+
+class ForecastBody(BaseModel):
+    start: dict
+    end: dict
+    path: Optional[list] = None
+    hours: int = Field(default=48, ge=1, le=72)
+    points: int = Field(default=3, ge=1, le=5)
+
+
+def _forecast_upgrade_detail(plan: str) -> dict:
+    return {
+        "code": "upgrade_required",
+        "feature": "forecasts",
+        "plan": plan,
+        "message": (
+            "Anticipated weather, tides, wave height, and wind forecasts are a Pro feature. "
+            "Upgrade to unlock full route forecasts (Open-Meteo + NOAA CO-OPS)."
+        ),
+        "upgrade": True,
+        "preview_available": True,
+    }
+
+
+@app.get("/api/forecast")
+def get_forecast(
+    request: Request,
+    start_lat: float = Query(...),
+    start_lon: float = Query(...),
+    end_lat: float = Query(...),
+    end_lon: float = Query(...),
+    hours: int = Query(48, ge=1, le=72),
+    points: int = Query(3, ge=1, le=5),
+    preview: bool = Query(
+        False,
+        description="Short marketing sample (1 point, ≤6h). Allowed without Pro.",
+    ),
+    db: Session = Depends(get_db),
+    user: Optional[User] = Depends(get_optional_user),
+    _: None = Depends(protect_route),
+):
+    """Forecast wind, waves, weather, and tides along a route.
+
+    Full forecasts require Pro (`forecasts_enabled`). Free/anonymous users may
+    request `preview=true` for a short teaser, otherwise receive HTTP 402.
+    """
+    limits = usage_snapshot(
+        db,
+        user=user,
+        anon_key=f"ip:{_client_ip(request)}" if not user else None,
+    )
+    pro = bool(user and (user.forecasts_enabled or user.plan == "pro"))
+    if not pro and not preview:
+        raise HTTPException(status_code=402, detail=_forecast_upgrade_detail(limits["plan"]))
+
+    start = {"lat": start_lat, "lon": start_lon}
+    end = {"lat": end_lat, "lon": end_lon}
+    data = forecast_svc.build_route_forecast(
+        start,
+        end,
+        hours=hours,
+        point_count=1 if preview else points,
+        include_tides=True,
+        preview=preview or not pro,
+    )
+    data["quota"] = limits
+    data["forecasts_enabled"] = pro
+    data["plan"] = limits["plan"]
+    if preview and not pro:
+        data["teaser"] = True
+        data["upgrade_message"] = _forecast_upgrade_detail(limits["plan"])["message"]
+    return data
+
+
+@app.post("/api/forecast")
+def post_forecast(
+    body: ForecastBody,
+    request: Request,
+    preview: bool = Query(False),
+    db: Session = Depends(get_db),
+    user: Optional[User] = Depends(get_optional_user),
+    _: None = Depends(protect_route),
+):
+    """Same as GET /api/forecast but accepts path waypoints in the JSON body."""
+    limits = usage_snapshot(
+        db,
+        user=user,
+        anon_key=f"ip:{_client_ip(request)}" if not user else None,
+    )
+    pro = bool(user and (user.forecasts_enabled or user.plan == "pro"))
+    if not pro and not preview:
+        raise HTTPException(status_code=402, detail=_forecast_upgrade_detail(limits["plan"]))
+
+    start = body.start or {}
+    end = body.end or {}
+    if start.get("lat") is None or start.get("lon") is None or end.get("lat") is None or end.get("lon") is None:
+        raise HTTPException(status_code=400, detail="'start' and 'end' with lat/lon are required")
+
+    data = forecast_svc.build_route_forecast(
+        {"lat": float(start["lat"]), "lon": float(start["lon"])},
+        {"lat": float(end["lat"]), "lon": float(end["lon"])},
+        path=body.path,
+        hours=body.hours,
+        point_count=1 if preview else body.points,
+        include_tides=True,
+        preview=preview or not pro,
+    )
+    data["quota"] = limits
+    data["forecasts_enabled"] = pro
+    data["plan"] = limits["plan"]
+    if preview and not pro:
+        data["teaser"] = True
+        data["upgrade_message"] = _forecast_upgrade_detail(limits["plan"])["message"]
+    return data
 
 
 @app.post("/api/chat")
