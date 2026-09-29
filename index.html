@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <script src="./app.js" defer></script>
     <style>
         :root {
             --bg: #070e1b;
@@ -67,7 +66,7 @@
         .main-grid {
             display: grid;
             grid-template-columns: 330px 1fr;
-            height: calc(100vh - 69px);
+            height: calc(100vh - 105px);
         }
         .sidebar {
             background: rgba(4, 12, 30, 0.96);
@@ -314,6 +313,112 @@
         .buoy-popup table { border-collapse: collapse; font-size: 0.76rem; width: 100%; }
         .buoy-popup td { padding: 2px 0; }
         .buoy-popup td:last-child { color: var(--text-bright); font-weight: 600; text-align: right; padding-left: 8px; }
+
+        /* ── Advisory disclaimer ── */
+        .disclaimer-banner {
+            background: linear-gradient(90deg, rgba(180,80,0,0.35), rgba(120,40,0,0.28));
+            border-bottom: 1px solid rgba(255,170,0,0.45);
+            color: #ffd080;
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            padding: 8px 18px;
+            text-align: center;
+        }
+        .disclaimer-banner strong { color: #ffe0a0; }
+        .route-advisory {
+            font-size: 0.72rem;
+            color: #ffaa00;
+            background: rgba(80,40,0,0.35);
+            border: 1px solid rgba(255,170,0,0.3);
+            border-radius: 6px;
+            padding: 7px 9px;
+            margin-top: 8px;
+            line-height: 1.4;
+            display: none;
+        }
+        .route-advisory.visible { display: block; }
+        .preset-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .btn-preset {
+            flex: 1;
+            min-width: 120px;
+            padding: 6px 8px;
+            background: rgba(0,60,100,0.35);
+            border: 1px solid rgba(0,140,190,0.35);
+            border-radius: 6px;
+            color: var(--accent);
+            font-size: 0.7rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-preset:hover {
+            background: rgba(0,80,140,0.55);
+            border-color: var(--accent);
+        }
+
+        /* ── Account / freemium ── */
+        header { justify-content: space-between; flex-wrap: wrap; }
+        .header-left { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+        .header-account {
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+            margin-left: auto;
+        }
+        .plan-pill {
+            font-size: 0.68rem; font-weight: 700; letter-spacing: 0.8px;
+            text-transform: uppercase; padding: 3px 9px; border-radius: 20px;
+            border: 1px solid rgba(0,180,220,0.35); color: var(--accent);
+            background: rgba(0,60,100,0.35);
+        }
+        .plan-pill.pro { color: #ffd080; border-color: rgba(255,170,0,0.45); background: rgba(80,40,0,0.35); }
+        .quota-chip { font-size: 0.72rem; color: #7aa0c0; }
+        .btn-ghost {
+            padding: 6px 10px; font-size: 0.72rem; font-weight: 600;
+            background: rgba(0,60,100,0.3); border: 1px solid rgba(0,140,190,0.35);
+            border-radius: 6px; color: var(--accent); cursor: pointer;
+        }
+        .btn-ghost:hover { border-color: var(--accent); background: rgba(0,80,140,0.5); }
+        .btn-upgrade {
+            padding: 6px 12px; font-size: 0.72rem; font-weight: 700;
+            background: linear-gradient(135deg, #aa6600, #ffaa00);
+            border: none; border-radius: 6px; color: #1a1000; cursor: pointer;
+        }
+        .btn-upgrade:hover { filter: brightness(1.08); }
+        .btn-upgrade:disabled { opacity: 0.45; cursor: default; filter: none; }
+        .auth-form { display: flex; flex-direction: column; gap: 7px; }
+        .auth-form input[type="email"], .auth-form input[type="password"],
+        input[type="email"], input[type="password"] {
+            width: 100%; padding: 8px 10px; background: rgba(0,18,48,0.85);
+            border: 1px solid rgba(0,120,180,0.32); border-radius: 6px;
+            color: var(--text-bright); font-size: 0.84rem; outline: none;
+        }
+        .auth-form input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,200,224,0.14); }
+        .auth-msg { font-size: 0.72rem; min-height: 1em; color: #7aa0c0; }
+        .auth-msg.error { color: var(--danger); }
+        .auth-msg.ok { color: var(--ok); }
+        .auth-tabs { display: flex; gap: 6px; margin-bottom: 4px; }
+        .auth-tabs button {
+            flex: 1; padding: 6px; font-size: 0.72rem; font-weight: 600;
+            background: rgba(0,40,80,0.4); border: 1px solid rgba(0,120,180,0.25);
+            border-radius: 6px; color: #7aa0c0; cursor: pointer;
+        }
+        .auth-tabs button.active { color: var(--accent); border-color: var(--accent); }
+        .saved-list { list-style: none; margin: 0; padding: 0; max-height: 120px; overflow-y: auto; }
+        .saved-list li {
+            display: flex; justify-content: space-between; align-items: center;
+            gap: 6px; padding: 5px 0; border-bottom: 1px solid rgba(0,100,140,0.15);
+            font-size: 0.76rem;
+        }
+        .saved-list button {
+            background: transparent; border: none; color: var(--danger);
+            cursor: pointer; font-size: 0.72rem;
+        }
+
         /* ── Responsive ── */
         @media (max-width: 780px) {
             .main-grid { grid-template-columns: 1fr; height: auto; }
@@ -324,13 +429,51 @@
 </head>
 <body>
     <header>
-        <h1>⚓ Condition Aggregator</h1>
-        <p>Real-time maritime route conditions via NOAA / NDBC buoy network</p>
+        <div class="header-left">
+            <h1>⚓ Condition Aggregator</h1>
+            <p>Real-time maritime route conditions via NOAA / NDBC buoy network</p>
+        </div>
+        <div class="header-account" id="headerAccount">
+            <span class="plan-pill" id="planPill">Free</span>
+            <span class="quota-chip" id="quotaChip">—</span>
+            <button type="button" class="btn-upgrade" id="upgradeBtn" title="Upgrade to Pro (PayPal)">Upgrade to Pro</button>
+            <button type="button" class="btn-ghost" id="logoutBtn" style="display:none;">Log out</button>
+        </div>
     </header>
+    <div class="disclaimer-banner" role="alert">
+        ⚠ <strong>ADVISORY ONLY — NOT FOR NAVIGATION.</strong>
+        Routes and conditions are approximate estimates from public buoy data.
+        Always use official charts, forecasts, and seamanship.
+    </div>
 
     <div class="main-grid">
         <!-- ── Left Sidebar ── -->
         <aside class="sidebar">
+
+
+            <!-- Account / Freemium -->
+            <div class="card" id="accountCard">
+                <h3>👤 Account</h3>
+                <div id="authGuest">
+                    <div class="auth-tabs">
+                        <button type="button" class="active" id="tabLogin">Log in</button>
+                        <button type="button" id="tabSignup">Sign up</button>
+                    </div>
+                    <form class="auth-form" id="authForm">
+                        <input type="email" id="authEmail" placeholder="Email" autocomplete="email" required />
+                        <input type="password" id="authPassword" placeholder="Password (8+ chars)" autocomplete="current-password" required minlength="8" />
+                        <button type="submit" class="btn-primary" id="authSubmit">Log in</button>
+                    </form>
+                    <p class="auth-msg" id="authMsg">Free: 3 routes/day · 1 AI chat/day · 3 saved routes</p>
+                </div>
+                <div id="authUser" style="display:none;">
+                    <p style="margin:0 0 6px;font-size:0.84rem;"><strong id="userEmailLabel"></strong></p>
+                    <p class="quota-chip" id="quotaDetail" style="margin:0 0 8px;"></p>
+                    <button type="button" class="btn-primary" id="saveRouteBtn" style="margin-bottom:8px;">★ Save current route</button>
+                    <ul class="saved-list" id="savedList"></ul>
+                    <button type="button" class="btn-ghost" id="manageBillingBtn" style="width:100%;margin-top:8px;">Manage billing</button>
+                </div>
+            </div>
 
             <!-- Route Planning -->
             <div class="card">
@@ -353,8 +496,18 @@
                     </div>
                     <button type="submit" class="btn-primary" id="computeBtn">🌊 Compute Route</button>
                 </form>
+                <div class="preset-row">
+                    <button type="button" class="btn-preset" id="presetSdSf" title="West Coast coastal hop with strong NDBC coverage">
+                        📍 San Diego → San Francisco
+                    </button>
+                    <button type="button" class="btn-preset" id="presetSolana" title="Solana Beach coastal hop">
+                        📍 Solana Beach → Catalina
+                    </button>
+                </div>
+                <div class="route-advisory" id="routeAdvisory"></div>
                 <p style="font-size:0.68rem;color:#2a4a6a;margin:7px 0 0;">
-                    Enter city names or lat,lon (e.g. 24.14,-110.31). Drag markers to adjust.
+                    Enter city names or lat,lon (e.g. 32.72,-117.16). Drag markers to adjust.
+                    Results are advisory / approximate only.
                 </p>
             </div>
 
@@ -409,5 +562,6 @@
             <div id="plotlyChart"></div>
         </div>
     </div>
+    <script type="module" src="./app.js"></script>
 </body>
 </html>
