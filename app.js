@@ -4,7 +4,8 @@
 
 import { computeWaterRoute } from './src/routing/water_pathfinder.js';
 
-// API base: ?api= override, then localStorage, then localhost in local/dev, else Render
+// API base: ?api= override, then localStorage, then same-origin when UI+API share a host.
+// Local split-dev (e.g. Live Server :5500 + API :8000) still points at localhost:8000.
 function resolveApiBase() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('api')) return params.get('api').replace(/\/$/, '');
@@ -14,9 +15,14 @@ function resolveApiBase() {
     } catch (_) { /* ignore */ }
     const host = window.location.hostname;
     if (host === 'localhost' || host === '127.0.0.1' || host === '') {
+        const port = window.location.port;
+        // Served from FastAPI itself (port 8000 or default) → same origin
+        if (!port || port === '8000') return '';
+        // Split-dev static server (e.g. :5500) → API on 8000
         return 'http://127.0.0.1:8000';
     }
-    return 'https://condition-aggregator-api.onrender.com';
+    // Production / Render single-service: same origin
+    return '';
 }
 
 const API_BASE = resolveApiBase();

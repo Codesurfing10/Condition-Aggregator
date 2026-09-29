@@ -8,6 +8,8 @@ from collections import defaultdict
 from typing import Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
@@ -861,3 +863,41 @@ async def chat(
         }
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"AI model error: {exc}") from exc
+
+
+# ── Static frontend (single-service deploy: UI + API) ─────────────────────────
+# Serves repo-root index.html / app.js / src / selected data files from the same
+# origin as /api/* and /health. Do NOT mount all of data/ (would expose SQLite).
+
+_ROOT = config.ROOT
+
+
+@app.get("/")
+async def spa_index():
+    return FileResponse(_ROOT / "index.html")
+
+
+@app.get("/app.js")
+async def spa_app_js():
+    return FileResponse(_ROOT / "app.js", media_type="application/javascript")
+
+
+@app.get("/data/land_110m.geojson")
+async def spa_land_geojson():
+    path = _ROOT / "data" / "land_110m.geojson"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="land_110m.geojson not found")
+    return FileResponse(path, media_type="application/geo+json")
+
+
+@app.get("/data/reference_points.geojson")
+async def spa_reference_geojson():
+    path = _ROOT / "data" / "reference_points.geojson"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="reference_points.geojson not found")
+    return FileResponse(path, media_type="application/geo+json")
+
+
+_src_dir = _ROOT / "src"
+if _src_dir.is_dir():
+    app.mount("/src", StaticFiles(directory=str(_src_dir)), name="frontend_src")
