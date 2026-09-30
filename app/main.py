@@ -1000,6 +1000,27 @@ async def spa_app_js():
     return FileResponse(_ROOT / "app.js", media_type="application/javascript")
 
 
+@app.get("/manifest.webmanifest")
+async def spa_manifest():
+    return FileResponse(
+        _ROOT / "manifest.webmanifest",
+        media_type="application/manifest+json",
+    )
+
+
+@app.get("/sw.js")
+async def spa_service_worker():
+    # Must be served from site root so Service-Worker-Allowed scope is "/".
+    return FileResponse(
+        _ROOT / "sw.js",
+        media_type="application/javascript",
+        headers={
+            "Service-Worker-Allowed": "/",
+            "Cache-Control": "no-cache",
+        },
+    )
+
+
 @app.get("/data/land_110m.geojson")
 async def spa_land_geojson():
     path = _ROOT / "data" / "land_110m.geojson"
@@ -1019,3 +1040,7 @@ async def spa_reference_geojson():
 _src_dir = _ROOT / "src"
 if _src_dir.is_dir():
     app.mount("/src", StaticFiles(directory=str(_src_dir)), name="frontend_src")
+
+_icons_dir = _ROOT / "static" / "icons"
+if _icons_dir.is_dir():
+    app.mount("/static/icons", StaticFiles(directory=str(_icons_dir)), name="pwa_icons")

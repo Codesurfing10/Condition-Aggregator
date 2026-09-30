@@ -2,8 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Condition Aggregator</title>
+    <meta name="description" content="Advisory maritime route conditions from NOAA/NDBC. Not for navigation.">
+    <meta name="theme-color" content="#070e1b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Conditions">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/static/icons/icon-180.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/static/icons/icon-512.png">
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
@@ -488,6 +497,30 @@
             cursor: pointer; font-size: 0.72rem;
         }
 
+        /* ── PWA install tip ── */
+        .pwa-install-tip {
+            display: none;
+            background: rgba(0, 40, 80, 0.55);
+            border-bottom: 1px solid rgba(0, 180, 220, 0.28);
+            color: #9ec8e8;
+            font-size: 0.74rem;
+            padding: 7px 16px;
+            text-align: center;
+            line-height: 1.35;
+        }
+        .pwa-install-tip.visible { display: block; }
+        .pwa-install-tip strong { color: var(--accent); }
+        .pwa-install-tip button {
+            margin-left: 8px;
+            padding: 2px 8px;
+            font-size: 0.68rem;
+            background: transparent;
+            border: 1px solid rgba(0,140,190,0.4);
+            border-radius: 4px;
+            color: #7aa0c0;
+            cursor: pointer;
+        }
+
         /* ── Responsive ── */
         @media (max-width: 780px) {
             .main-grid { grid-template-columns: 1fr; height: auto; }
@@ -513,6 +546,11 @@
         ⚠ <strong>ADVISORY ONLY — NOT FOR NAVIGATION.</strong>
         Routes and conditions are approximate estimates from public buoy data.
         Always use official charts, forecasts, and seamanship.
+    </div>
+    <div class="pwa-install-tip" id="pwaInstallTip" role="note">
+        <strong>Install on iPhone:</strong> tap Share
+        <span aria-hidden="true">□↑</span> → <strong>Add to Home Screen</strong>
+        <button type="button" id="pwaTipDismiss" aria-label="Dismiss install tip">Dismiss</button>
     </div>
 
     <div class="main-grid">

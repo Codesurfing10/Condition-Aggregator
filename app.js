@@ -1159,3 +1159,42 @@ window.addEventListener('load', async () => {
     await initCesium();
     computeAndRender();
 });
+
+// ── PWA: service worker (HTTPS / same-origin only) + iPhone install tip ──
+(function registerPwa() {
+    const secure =
+        window.location.protocol === 'https:' ||
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1';
+    if (secure && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch((err) => {
+            console.warn('Service worker registration failed:', err);
+        });
+    }
+
+    const tip = document.getElementById('pwaInstallTip');
+    const dismiss = document.getElementById('pwaTipDismiss');
+    if (!tip) return;
+
+    const standalone =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true;
+    let dismissed = false;
+    try {
+        dismissed = localStorage.getItem('CA_PWA_TIP_DISMISSED') === '1';
+    } catch (_) { /* ignore */ }
+
+    // Show tip on coarse-pointer / iOS-like browsers when not already installed
+    const likelyMobile =
+        ('ontouchstart' in window) ||
+        (navigator.maxTouchPoints > 0) ||
+        /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '');
+
+    if (!standalone && !dismissed && likelyMobile) {
+        tip.classList.add('visible');
+    }
+    dismiss?.addEventListener('click', () => {
+        tip.classList.remove('visible');
+        try { localStorage.setItem('CA_PWA_TIP_DISMISSED', '1'); } catch (_) { /* ignore */ }
+    });
+})();
